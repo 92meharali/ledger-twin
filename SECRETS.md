@@ -59,13 +59,16 @@ Tables to create: `Clients`, `Invoices`, `Payments`, `EventLog`
 | `SLACK_BOT_TOKEN` | Bot User OAuth Token (`xoxb-…`) |
 | `SLACK_SIGNING_SECRET` | App signing secret (verify interactivity) |
 | `SLACK_CHANNEL_ID` | Channel id where approval cards post (`C…`) |
+| `SLACK_APP_TOKEN` | App-Level Token (`xapp-…`) — **Socket Mode for local Approve buttons** |
 
 **Create / manage apps:** https://api.slack.com/apps  
 
 In your app:
 1. **OAuth & Permissions** → Bot Token Scopes → add `chat:write` → Install to workspace  
 2. **Basic Information** → App Credentials → copy **Signing Secret**  
-3. **Interactivity & Shortcuts** → enable → Request URL: `{PUBLIC_BASE_URL}/webhooks/slack/interact`  
+3. **Basic Information** → App-Level Tokens → Generate → scope `connections:write` → copy `xapp-…`  
+4. **Socket Mode** → Enable  
+5. **Interactivity & Shortcuts** → Enable (Request URL not required when Socket Mode is on)  
 
 **Find a channel ID:** open the channel in Slack → channel details → copy Channel ID  
 (or right-click channel → View channel details)
@@ -164,6 +167,6 @@ Temp mail covers the email path for the hackathon demo — do Gmail only if you 
 - [ ] `STRIPE_WEBHOOK_SECRET` — later via `stripe listen` (not needed yet)
 - [x] Airtable → `AIRTABLE_API_KEY` + `AIRTABLE_BASE_ID=apphXdxfzsOQ2a4G2`
 - [x] Axiom → `AXIOM_TOKEN` + `AXIOM_DATASET=ledger-twin` + `AXIOM_EDGE=us-east-1.aws.edge.axiom.co`
-- [ ] https://api.slack.com/apps → Slack (ticket 03)
+- [x] https://api.slack.com/apps → Slack bot token + signing secret + channel
 - [ ] https://docs.mail.tm/ → temp mail (ticket 03)
 - [ ] Public URL / ngrok — optional if using Stripe CLI locally

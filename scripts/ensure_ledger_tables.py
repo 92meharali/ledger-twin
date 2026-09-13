@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ensure Clients / Invoices / Payments tables exist and seed demo ledger rows."""
+"""Ensure Clients / Invoices / Payments tables exist and seed brand demo ledger rows."""
 from __future__ import annotations
 
 import os
@@ -15,6 +15,51 @@ TOKEN = os.environ["AIRTABLE_API_KEY"]
 META = f"https://api.airtable.com/v0/meta/bases/{BASE}/tables"
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 DATA = f"https://api.airtable.com/v0/{BASE}"
+
+BRANDS = [
+    {
+        "name": "Cursor",
+        "email": "billing@cursor.com",
+        "aliases": "Cursor AI, Anysphere",
+        "website": "https://cursor.com",
+        "invoices": [("INV-CURSOR-1000", 100000), ("INV-CURSOR-20", 2000), ("INV-CURSOR-450", 45000)],
+    },
+    {
+        "name": "Slack",
+        "email": "ap@slack.com",
+        "aliases": "Slack Technologies, Salesforce Slack",
+        "website": "https://slack.com",
+        "invoices": [("INV-SLACK-1000", 100000), ("INV-SLACK-875", 87500)],
+    },
+    {
+        "name": "Anthropic",
+        "email": "billing@anthropic.com",
+        "aliases": "Claude, Anthropic PBC, Claude AI",
+        "website": "https://www.anthropic.com",
+        "invoices": [("INV-CLAUDE-2500", 250000)],
+    },
+    {
+        "name": "Stripe",
+        "email": "billing@stripe.com",
+        "aliases": "Stripe Inc, Stripe Payments",
+        "website": "https://stripe.com",
+        "invoices": [("INV-STRIPE-1200", 120000)],
+    },
+    {
+        "name": "Notion",
+        "email": "billing@makenotion.com",
+        "aliases": "Notion Labs",
+        "website": "https://www.notion.so",
+        "invoices": [("INV-NOTION-360", 36000)],
+    },
+    {
+        "name": "Linear",
+        "email": "billing@linear.app",
+        "aliases": "Linear Orbit",
+        "website": "https://linear.app",
+        "invoices": [("INV-LINEAR-199", 19900)],
+    },
+]
 
 
 def list_tables(client: httpx.Client):
@@ -34,6 +79,22 @@ def create_table(client: httpx.Client, name: str, fields: list) -> dict:
     return r.json()
 
 
+def ensure_field(client: httpx.Client, table: dict, field_name: str, field_type: str = "singleLineText") -> None:
+    existing = {f["name"] for f in table.get("fields", [])}
+    if field_name in existing:
+        return
+    table_id = table["id"]
+    r = client.post(
+        f"{META}/{table_id}/fields",
+        headers=HEADERS,
+        json={"name": field_name, "type": field_type},
+    )
+    if r.status_code not in (200, 201):
+        print(f"warn: could not add field {field_name}: {r.status_code} {r.text[:200]}")
+    else:
+        print(f"Added field {field_name} to {table.get('name')}")
+
+
 def ensure_tables(client: httpx.Client) -> None:
     existing = list_tables(client)
 
@@ -44,12 +105,16 @@ def ensure_tables(client: httpx.Client) -> None:
             [
                 {"name": "Email", "type": "email"},
                 {"name": "Aliases", "type": "singleLineText"},
+                {"name": "Website", "type": "url"},
                 {"name": "NeedsReview", "type": "checkbox", "options": {"color": "yellowBright", "icon": "check"}},
             ],
         )
         print("Created Clients")
     else:
         print("Clients exists")
+        ensure_field(client, existing["Clients"], "Website", "url")
+
+    existing = list_tables(client)
 
     if "Invoices" not in existing:
         create_table(
@@ -87,98 +152,65 @@ def ensure_tables(client: httpx.Client) -> None:
 
 
 def seed(client: httpx.Client) -> None:
-    # If Jose already exists, skip seed
     cr = client.get(f"{DATA}/Clients", headers=HEADERS, params={"maxRecords": 100})
     cr.raise_for_status()
-    clients = cr.json().get("records", [])
-    jose = None
-    for rec in clients:
-        if (rec.get("fields") or {}).get("Name") == "Jose Martinez Studio":
-            jose = rec
-            break
-
-    if not jose:
-        r = client.post(
-            f"{DATA}/Clients",
-            headers=HEADERS,
-            json={
-                "fields": {
-                    "Name": "Jose Martinez Studio",
-                    "Email": "jose@example.com",
-                    "Aliases": "Jose Martinez, J Martinez",
-                    "NeedsReview": False,
-                }
-            },
-        )
-        r.raise_for_status()
-        jose = r.json()
-        print("Seeded client", jose["id"])
-    else:
-        print("Client already seeded", jose["id"])
-
-    client_id = jose["id"]
+    clients = {((rec.get("fields") or {}).get("Name") or ""): rec for rec in cr.json().get("records", [])}
 
     ir = client.get(f"{DATA}/Invoices", headers=HEADERS, params={"maxRecords": 100})
     ir.raise_for_status()
     invoices = ir.json().get("records", [])
-    have_1000 = any(
-        (x.get("fields") or {}).get("Name") == "INV-DEMO-1000"
-        and (x.get("fields") or {}).get("Status") == "open"
-        for x in invoices
-    )
-    have_20 = any(
-        (x.get("fields") or {}).get("Name") == "INV-DEMO-20"
-        and (x.get("fields") or {}).get("Status") == "open"
-        for x in invoices
-    )
+    inv_by_name = {((x.get("fields") or {}).get("Name") or ""): x for x in invoices}
 
-    if not have_1000:
-        r = client.post(
-            f"{DATA}/Invoices",
-            headers=HEADERS,
-            json={
-                "fields": {
-                    "Name": "INV-DEMO-1000",
-                    "ClientRecordId": client_id,
-                    "ClientName": "Jose Martinez Studio",
-                    "AmountCents": 100000,
-                    "RemainingCents": 100000,
-                    "Status": "open",
-                    "Currency": "usd",
-                }
-            },
-        )
-        r.raise_for_status()
-        print("Seeded invoice INV-DEMO-1000", r.json()["id"])
-    else:
-        print("INV-DEMO-1000 already open")
+    for brand in BRANDS:
+        rec = clients.get(brand["name"])
+        fields = {
+            "Name": brand["name"],
+            "Email": brand["email"],
+            "Aliases": brand["aliases"],
+            "Website": brand["website"],
+            "NeedsReview": False,
+        }
+        if not rec:
+            r = client.post(f"{DATA}/Clients", headers=HEADERS, json={"fields": fields})
+            if r.status_code not in (200, 201):
+                fields.pop("Website", None)
+                r = client.post(f"{DATA}/Clients", headers=HEADERS, json={"fields": fields})
+            r.raise_for_status()
+            rec = r.json()
+            print("Seeded client", brand["name"], brand["website"], rec["id"])
+        else:
+            patch = {k: v for k, v in fields.items() if k != "Name"}
+            client.patch(f"{DATA}/Clients/{rec['id']}", headers=HEADERS, json={"fields": patch})
+            print("Updated client", brand["name"], brand["website"])
 
-    if not have_20:
-        r = client.post(
-            f"{DATA}/Invoices",
-            headers=HEADERS,
-            json={
-                "fields": {
-                    "Name": "INV-DEMO-20",
-                    "ClientRecordId": client_id,
-                    "ClientName": "Jose Martinez Studio",
-                    "AmountCents": 2000,
-                    "RemainingCents": 2000,
-                    "Status": "open",
-                    "Currency": "usd",
-                }
-            },
-        )
-        r.raise_for_status()
-        print("Seeded invoice INV-DEMO-20", r.json()["id"])
-    else:
-        print("INV-DEMO-20 already open")
+        client_id = rec["id"]
+        for inv_name, cents in brand["invoices"]:
+            existing = inv_by_name.get(inv_name)
+            body = {
+                "Name": inv_name,
+                "ClientRecordId": client_id,
+                "ClientName": brand["name"],
+                "AmountCents": cents,
+                "RemainingCents": cents,
+                "Status": "open",
+                "Currency": "usd",
+            }
+            if existing:
+                client.patch(
+                    f"{DATA}/Invoices/{existing['id']}",
+                    headers=HEADERS,
+                    json={"fields": body},
+                )
+                print("Reopened", inv_name)
+            else:
+                r = client.post(f"{DATA}/Invoices", headers=HEADERS, json={"fields": body})
+                r.raise_for_status()
+                print("Seeded invoice", inv_name, r.json()["id"])
 
 
 def main() -> int:
     with httpx.Client(timeout=30.0) as client:
         ensure_tables(client)
-        # refresh after creates
         seed(client)
     return 0
 

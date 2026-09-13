@@ -23,11 +23,15 @@ def _money(cents: Any) -> float:
         return 0.0
 
 
-def _invoice_view(inv: Dict[str, Any]) -> Dict[str, Any]:
+def _invoice_view(inv: Dict[str, Any], websites: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    website = ""
+    if websites:
+        website = websites.get(inv.get("client_record_id") or "", "") or websites.get(inv.get("client_name") or "", "")
     return {
         **inv,
         "amount": _money(inv.get("amount_cents")),
         "remaining": _money(inv.get("remaining_cents")),
+        "website": website,
     }
 
 
@@ -42,9 +46,15 @@ def user_overview(user: dict = Depends(get_current_user)) -> dict:
     except Exception:
         clients = []
 
+    websites: Dict[str, str] = {}
+    for c in clients:
+        if c.get("website"):
+            websites[c.get("id") or ""] = c["website"]
+            websites[c.get("name") or ""] = c["website"]
+
     invoices: List[Dict[str, Any]] = []
     try:
-        invoices = [_invoice_view(i) for i in airtable_client.list_all_invoices()]
+        invoices = [_invoice_view(i, websites) for i in airtable_client.list_all_invoices()]
     except Exception:
         invoices = []
 
@@ -82,7 +92,11 @@ def user_overview(user: dict = Depends(get_current_user)) -> dict:
     flag(bool(settings.axiom_token), "Axiom logs", "Live agent observability")
     flag(bool(settings.temp_mail_address), "Temp mail inbox", settings.temp_mail_address or "Not set up")
     flag(bool(settings.openai_api_key), "AI matching", "OpenAI entity judge ready")
-    flag(bool(settings.slack_bot_token), "Slack alerts", "Not connected — approve in app instead")
+    flag(
+        bool(settings.slack_bot_token and settings.slack_channel_id),
+        "Slack alerts",
+        "Not connected — approve in app instead",
+    )
     flag(len(clients) > 0, "Clients", f"{len(clients)} on file")
     flag(len(invoices) > 0, "Invoices", f"{len(invoices)} total")
 

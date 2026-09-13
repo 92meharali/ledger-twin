@@ -22,7 +22,7 @@ def set_pending_status(pending_id: str, status: str) -> None:
 
 def resolve_pending(pending_id: str, decision: str) -> Dict[str, Any]:
     """
-    Local HITL (Slack substitute): approve | reject a pending action.
+    HITL: approve | reject a pending action (Slack buttons or local UI/API).
     """
     decision = decision.lower().strip()
     if decision not in {"approve", "reject"}:

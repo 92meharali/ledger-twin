@@ -94,6 +94,7 @@ def list_clients() -> List[Dict[str, Any]]:
                 "name": f.get("Name") or "",
                 "email": f.get("Email") or "",
                 "aliases": f.get("Aliases") or "",
+                "website": f.get("Website") or "",
                 "needs_review": bool(f.get("NeedsReview")),
             }
         )
@@ -105,6 +106,7 @@ def create_client(
     name: str,
     email: str = "",
     aliases: str = "",
+    website: str = "",
     needs_review: bool = True,
 ) -> Dict[str, Any]:
     fields: Dict[str, Any] = {
@@ -115,15 +117,58 @@ def create_client(
         fields["Email"] = email
     if aliases:
         fields["Aliases"] = aliases
-    rec = clients_table().create(fields)
+    if website:
+        fields["Website"] = website
+    try:
+        rec = clients_table().create(fields)
+    except Exception:
+        # Base may not have Website column yet — retry without it
+        fields.pop("Website", None)
+        rec = clients_table().create(fields)
     f = rec.get("fields") or {}
     return {
         "id": rec["id"],
         "name": f.get("Name") or name,
         "email": f.get("Email") or email,
         "aliases": f.get("Aliases") or aliases,
+        "website": f.get("Website") or website,
         "needs_review": bool(f.get("NeedsReview", needs_review)),
     }
+
+
+def upsert_client(
+    *,
+    name: str,
+    email: str = "",
+    aliases: str = "",
+    website: str = "",
+    needs_review: bool = False,
+) -> Dict[str, Any]:
+    existing = next((c for c in list_clients() if c.get("name") == name), None)
+    if not existing:
+        return create_client(
+            name=name,
+            email=email,
+            aliases=aliases,
+            website=website,
+            needs_review=needs_review,
+        )
+    fields: Dict[str, Any] = {}
+    if email and existing.get("email") != email:
+        fields["Email"] = email
+    if aliases and existing.get("aliases") != aliases:
+        fields["Aliases"] = aliases
+    if website and existing.get("website") != website:
+        fields["Website"] = website
+    if fields:
+        try:
+            clients_table().update(existing["id"], fields)
+        except Exception:
+            fields.pop("Website", None)
+            if fields:
+                clients_table().update(existing["id"], fields)
+        return {**existing, "email": email or existing.get("email"), "aliases": aliases or existing.get("aliases"), "website": website or existing.get("website")}
+    return existing
 
 
 def list_open_invoices(client_record_id: str) -> List[Dict[str, Any]]:

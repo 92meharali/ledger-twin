@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 app = FastAPI(
     title="Ledger Twin",
     description="Payment & identity reconciliation agent — full hackathon build",
-    version="0.5.0",
+    version="0.7.0",
 )
 
 app.include_router(health.router)
@@ -37,3 +37,6 @@ def on_startup() -> None:
     pending_actions.init_pending_db()
     init_eval_db()
     users.init_users_db()
+    from app.services.slack_socket import start_socket_mode
+
+    start_socket_mode()

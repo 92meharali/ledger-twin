@@ -19,7 +19,7 @@ def _name_hints_from_charge_or_pi(obj: dict[str, Any]) -> list[str]:
         hints.append(str(billing["name"]))
     metadata = obj.get("metadata") or {}
     if isinstance(metadata, dict):
-        for key in ("customer_name", "name", "client_name"):
+        for key in ("customer_name", "name", "client_name", "company"):
             if metadata.get(key):
                 hints.append(str(metadata[key]))
     shipping = obj.get("shipping") or {}

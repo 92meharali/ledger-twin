@@ -458,7 +458,7 @@
         <div class="row clickable" onclick="openInvoice('${i.id}')">
           <div>
             <strong>${i.name || "Invoice"}</strong>
-            <div class="muted">${i.client_name || "No client"} · ${statusPill(i.status)}</div>
+            <div class="muted">${i.client_name || "No client"}${i.website ? ` · <a href="${i.website}" target="_blank" rel="noopener">${i.website.replace(/^https?:\\/\\//,'')}</a>` : ""} · ${statusPill(i.status)}</div>
           </div>
           <div style="text-align:right">
             <div><strong>${money(i.amount)}</strong></div>

@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
     slack_channel_id: str = ""
+    slack_app_token: str = ""  # xapp-… Socket Mode (connections:write)
 
     auth_secret: str = "ledger-twin-dev-secret-change-me"
     auth_token_hours: int = 72

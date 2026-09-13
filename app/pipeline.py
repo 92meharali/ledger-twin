@@ -6,7 +6,7 @@ from typing import Any, Optional
 from app import idempotency, pending_actions
 from app.models import NormalizedEvent, ProcessResult
 from app.normalize import normalize_stripe_event
-from app.services import airtable_client, axiom_client
+from app.services import airtable_client, axiom_client, slack_client
 from app.services.entity_resolve import resolve_entity
 from app.services.matcher import match_payment_to_invoice
 
@@ -102,30 +102,42 @@ def process_normalized_event(event: NormalizedEvent) -> ProcessResult:
     message = f"{entity.notes} | {match.message}".strip(" |")
 
     if match.action != "auto_closed":
+        pending_payload = {
+            "event": event.model_dump(mode="json"),
+            "entity": {
+                "client": entity.client,
+                "score": entity.score,
+                "band": entity.band,
+                "same_entity": entity.same_entity,
+                "llm_answer": entity.llm_answer,
+                "llm_reasoning": entity.llm_reasoning,
+                "notes": entity.notes,
+            },
+            "match": {
+                "action": match.action,
+                "invoice": match.invoice,
+                "delta_cents": match.delta_cents,
+                "message": match.message,
+            },
+            "triad": triad,
+        }
         pending_id = pending_actions.create_pending(
             external_id=event.external_id,
             reason=match.action,
-            payload={
-                "event": event.model_dump(mode="json"),
-                "entity": {
-                    "client": entity.client,
-                    "score": entity.score,
-                    "band": entity.band,
-                    "same_entity": entity.same_entity,
-                    "llm_answer": entity.llm_answer,
-                    "llm_reasoning": entity.llm_reasoning,
-                    "notes": entity.notes,
-                },
-                "match": {
-                    "action": match.action,
-                    "invoice": match.invoice,
-                    "delta_cents": match.delta_cents,
-                    "message": match.message,
-                },
-                "triad": triad,
-            },
+            payload=pending_payload,
         )
         message = f"{message} | pending_action_id={pending_id}"
+        slack_ok, slack_ts, slack_err = slack_client.post_approval_card(
+            pending_id=pending_id,
+            reason=match.action,
+            payload=pending_payload,
+        )
+        if slack_ok:
+            message = f"{message} | slack_ts={slack_ts}"
+            extra["SlackTs"] = slack_ts
+        elif slack_err and slack_err != "slack not configured":
+            message = f"{message} | slack_error={slack_err}"
+            logger.warning("Slack approval card failed: %s", slack_err)
 
     airtable_id, axiom_ok, message = _log_sinks(
         event=event,

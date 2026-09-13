@@ -24,6 +24,13 @@ def health() -> dict:
             and (settings.temp_mail_token or settings.temp_mail_password)
         ),
         "temp_mail_address": settings.temp_mail_address or None,
+        "slack_configured": bool(
+            settings.slack_bot_token
+            and settings.slack_signing_secret
+            and settings.slack_channel_id
+        ),
+        "slack_channel_id": settings.slack_channel_id or None,
+        "slack_socket_mode": bool(settings.slack_app_token),
         "idempotency": {
             "claimed": idempotency.claimed_count(),
             "blocked_duplicates": idempotency.blocked_count(),

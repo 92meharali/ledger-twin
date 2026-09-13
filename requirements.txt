@@ -11,3 +11,5 @@ python-dotenv>=1.0.0
 pyairtable>=2.3.0
 rapidfuzz>=3.9.0
 openai>=1.40.0
+slack-sdk>=3.33.0
+pytest>=8.0.0
