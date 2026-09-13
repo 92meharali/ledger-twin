@@ -10,7 +10,7 @@
 | Ops scorecard | [https://ledger-twin.vercel.app/dashboard](https://ledger-twin.vercel.app/dashboard) |
 | API docs | [https://ledger-twin.vercel.app/docs](https://ledger-twin.vercel.app/docs) |
 | Health | [https://ledger-twin.vercel.app/health](https://ledger-twin.vercel.app/health) |
-| Demo login | `demo@ledgertwin.dev` / `demo1234` |
+| Demo login | `demo@ledgertwin.dev` / ` demo1234 ` |
 
 Payment & identity reconciliation agent for the **Lemma × Comma Capital Hackathon**.
 
