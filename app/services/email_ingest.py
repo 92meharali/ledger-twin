@@ -55,6 +55,18 @@ def ingest_tempmail_message(msg: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def poll_and_ingest(limit: int = 20) -> Dict[str, Any]:
+    from app.services import axiom_client
+
+    try:
+        axiom_client.ingest_raw(
+            kind="temp_mail_poll",
+            status="started",
+            message="Temp-mail inbox poll started",
+            fields={"limit": limit},
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     messages = tempmail.list_messages()
     results: List[Dict[str, Any]] = []
     for summary in messages[:limit]:
@@ -67,6 +79,22 @@ def poll_and_ingest(limit: int = 20) -> Dict[str, Any]:
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed ingesting temp-mail %s: %s", mid, exc)
             results.append({"status": "error", "message_id": mid, "error": str(exc)})
+
+    payment_hits = sum(1 for r in results if r.get("status") not in {"ignored", "error", None})
+    try:
+        axiom_client.ingest_raw(
+            kind="temp_mail_poll",
+            status="completed",
+            message=f"Temp-mail poll finished — {len(results)} processed, {payment_hits} payment signals",
+            fields={
+                "fetched": len(messages),
+                "processed": len(results),
+                "payment_hits": payment_hits,
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     return {
         "inbox": True,
         "fetched": len(messages),

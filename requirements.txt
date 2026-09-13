@@ -1,4 +1,4 @@
-passlib[bcrypt]>=1.7.4
+passlib>=1.7.4
 PyJWT>=2.8.0
 eval_type_backport>=0.2.0
 fastapi>=0.115.0

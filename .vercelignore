@@ -1,0 +1,10 @@
+.scratch
+*.pdf
+_part*.json
+_deploy*.json
+_vercel*.json
+_make*.py
+_pack*.py
+_split*.py
+_clean*.json
+.git

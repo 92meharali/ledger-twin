@@ -12,3 +12,4 @@ sqlite/*.db
 data/
 node_modules/
 .scratch/**/secrets/
+.vercel

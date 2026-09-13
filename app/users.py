@@ -11,7 +11,12 @@ from passlib.context import CryptContext
 
 from app.config import get_settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pbkdf2_sha256 avoids the broken passlib↔bcrypt 4.x interaction that rejects
+# short passwords with "password cannot be longer than 72 bytes".
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+DEMO_EMAIL = "demo@ledgertwin.dev"
+DEMO_PASSWORD = "demo1234"
 
 
 def _path() -> Path:
@@ -90,7 +95,10 @@ def authenticate(email: str, password: str) -> Optional[Dict[str, Any]]:
         row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     if not row:
         return None
-    if not pwd_context.verify(password, row["password_hash"]):
+    try:
+        if not pwd_context.verify(password, row["password_hash"]):
+            return None
+    except Exception:
         return None
     return _row_to_user(row)
 
@@ -99,6 +107,14 @@ def get_user(user_id: str) -> Optional[Dict[str, Any]]:
     init_users_db()
     with _db() as conn:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return _row_to_user(row) if row else None
+
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    init_users_db()
+    email = email.strip().lower()
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     return _row_to_user(row) if row else None
 
 
@@ -140,3 +156,37 @@ def list_users() -> List[Dict[str, Any]]:
     with _db() as conn:
         rows = conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
     return [_row_to_user(r) for r in rows]
+
+
+def ensure_demo_user() -> Dict[str, Any]:
+    """
+    Create or reset the hackathon demo account so login always works on
+    ephemeral serverless storage (/tmp SQLite on Vercel).
+    """
+    init_users_db()
+    email = DEMO_EMAIL
+    password_hash = pwd_context.hash(DEMO_PASSWORD)
+    now = datetime.now(timezone.utc).isoformat()
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        if row:
+            conn.execute(
+                """
+                UPDATE users
+                SET password_hash = ?, full_name = ?, company = ?, updated_at = ?
+                WHERE email = ?
+                """,
+                (password_hash, "Demo User", "Cursor", now, email),
+            )
+            row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+            return _row_to_user(row)
+        uid = str(uuid.uuid4())
+        conn.execute(
+            """
+            INSERT INTO users (id, email, password_hash, full_name, company, bio, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, '', ?, ?)
+            """,
+            (uid, email, password_hash, "Demo User", "Cursor", now, now),
+        )
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    return _row_to_user(row)

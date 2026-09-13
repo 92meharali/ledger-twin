@@ -8,14 +8,23 @@ from pathlib import Path
 
 from app import idempotency, pending_actions, users
 from app.eval_store import init_eval_db
-from app.routes import auth_routes, demo, health, scorecard, tempmail_routes, user_portal, webhooks
+from app.routes import (
+    auth_routes,
+    demo,
+    health,
+    reports,
+    scorecard,
+    tempmail_routes,
+    user_portal,
+    webhooks,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 app = FastAPI(
     title="Ledger Twin",
     description="Payment & identity reconciliation agent — full hackathon build",
-    version="0.7.0",
+    version="0.8.0",
 )
 
 app.include_router(health.router)
@@ -25,6 +34,7 @@ app.include_router(tempmail_routes.router)
 app.include_router(scorecard.router)
 app.include_router(auth_routes.router)
 app.include_router(user_portal.router)
+app.include_router(reports.router)
 
 static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():
@@ -43,14 +53,11 @@ def on_startup() -> None:
     settings = get_settings()
     if settings.demo_mode:
         try:
-            users.create_user(
-                email="demo@ledgertwin.dev",
-                password="demo1234",
-                full_name="Demo User",
-                company="Cursor",
+            users.ensure_demo_user()
+            logging.getLogger(__name__).info(
+                "Demo account ready: %s / %s", users.DEMO_EMAIL, users.DEMO_PASSWORD
             )
-            logging.getLogger(__name__).info("Seeded demo@ledgertwin.dev account")
-        except ValueError:
-            pass  # already registered
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).exception("Demo user seed failed: %s", exc)
 
     start_socket_mode()

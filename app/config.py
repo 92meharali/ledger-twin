@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     temp_mail_password: str = ""
     temp_mail_token: str = ""
 
+    # Monthly report delivery (1st of each month → previous complete month)
+    report_to_email: str = "hamzafarooqsea@gmail.com"
+    report_from_email: str = "Ledger Twin <onboarding@resend.dev>"
+    resend_api_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    cron_secret: str = ""
+
     slack_bot_token: str = ""
     slack_signing_secret: str = ""
     slack_channel_id: str = ""
@@ -52,8 +63,9 @@ class Settings(BaseSettings):
     auth_secret: str = "ledger-twin-dev-secret-change-me"
     auth_token_hours: int = 72
 
-    sqlite_path: str = "./data/ledger_twin.db"
-    idempotency_db_path: str = "./data/idempotency.db"
+    # Vercel serverless filesystem is read-only except /tmp
+    sqlite_path: str = "/tmp/ledger_twin.db"
+    idempotency_db_path: str = "/tmp/idempotency.db"
 
     entity_auto_match_threshold: int = 90
     entity_llm_band_low: int = 60

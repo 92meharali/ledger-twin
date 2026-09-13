@@ -172,3 +172,20 @@ def test_health_endpoint(tmp_settings):
     body = r.json()
     assert body["ok"] is True
     assert body["service"] == "ledger-twin"
+
+
+def test_demo_login_works(tmp_settings):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app import users as users_db
+
+    users_db.ensure_demo_user()
+    client = TestClient(app)
+    r = client.post(
+        "/auth/login",
+        json={"email": "demo@ledgertwin.dev", "password": "demo1234"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["access_token"]
+    assert body["user"]["email"] == "demo@ledgertwin.dev"

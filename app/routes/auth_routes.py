@@ -47,6 +47,16 @@ def signup(body: SignupBody) -> dict:
 
 @router.post("/login")
 def login(body: LoginBody) -> dict:
+    from app.config import get_settings
+
+    email = body.email.strip().lower()
+    # Serverless /tmp DB can be empty on a cold instance — re-seed demo account.
+    if get_settings().demo_mode and email == users_db.DEMO_EMAIL:
+        try:
+            users_db.ensure_demo_user()
+        except Exception:  # noqa: BLE001
+            pass
+
     user = users_db.authenticate(body.email, body.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
