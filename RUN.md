@@ -1,9 +1,17 @@
-## Run the API (ticket 01)
+## Run locally
 
 ```bash
-cd /Users/meharali/Work/924B3ABC-9A26-4BFD-A23C-91259B926BBA
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # fill secrets — see SECRETS.md
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Production-style (same as Railway):
+
+```bash
+./scripts/start.sh
+# or: PORT=8000 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Endpoints
@@ -11,27 +19,24 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health` | Liveness + config + idempotency counts |
-| POST | `/webhooks/stripe` | Stripe webhook (signature verified when `STRIPE_WEBHOOK_SECRET` set) |
-| POST | `/demo/stripe-event` | Local inject (DEMO_MODE) — fire twice to prove duplicate block |
+| GET | `/app` | User workspace |
+| GET | `/dashboard` | Ops reliability scorecard |
+| POST | `/webhooks/stripe` | Stripe webhook |
+| POST | `/demo/killer` | Killer demo path (DEMO_MODE) |
 | GET | `/docs` | Swagger UI |
 
-### Test idempotency without Stripe CLI
+### Deploy (Railway)
 
-```bash
-curl -s -X POST http://127.0.0.1:8000/demo/stripe-event -H 'Content-Type: application/json' -d '{}'
-curl -s -X POST http://127.0.0.1:8000/demo/stripe-event -H 'Content-Type: application/json' -d '{}'
-```
+1. Connect GitHub repo `92meharali/ledger-twin` in [Railway](https://railway.app)
+2. Uses `Dockerfile` + `railway.toml` (health check `/health`)
+3. Paste env vars from `.env` into Railway Variables (never commit secrets)
+4. Set `PUBLIC_BASE_URL` / `APP_BASE_URL` to the Railway HTTPS URL after first deploy
+5. Demo login: `demo@ledgertwin.dev` / `demo1234`
 
-First → `accepted`. Second → `blocked_duplicate`.
-
-### Wire real Stripe webhooks (optional next)
+### Stripe CLI (local only)
 
 ```bash
 stripe listen --forward-to localhost:8000/webhooks/stripe
-```
-
-Copy `whsec_…` into `.env` as `STRIPE_WEBHOOK_SECRET`, restart API, then:
-
-```bash
+# copy whsec_… → STRIPE_WEBHOOK_SECRET, restart API
 stripe trigger payment_intent.succeeded
 ```

@@ -37,6 +37,20 @@ def on_startup() -> None:
     pending_actions.init_pending_db()
     init_eval_db()
     users.init_users_db()
+    from app.config import get_settings
     from app.services.slack_socket import start_socket_mode
+
+    settings = get_settings()
+    if settings.demo_mode:
+        try:
+            users.create_user(
+                email="demo@ledgertwin.dev",
+                password="demo1234",
+                full_name="Demo User",
+                company="Cursor",
+            )
+            logging.getLogger(__name__).info("Seeded demo@ledgertwin.dev account")
+        except ValueError:
+            pass  # already registered
 
     start_socket_mode()
