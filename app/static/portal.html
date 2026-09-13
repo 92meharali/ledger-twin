@@ -184,11 +184,14 @@
         <button type="button" class="on" id="tabLogin">Log in</button>
         <button type="button" id="tabSignup">Sign up</button>
       </div>
+      <p class="muted" style="font-size:13px;margin:0 0 8px">
+        Demo login: <code>demo@ledgertwin.dev</code> / <code>demo1234</code>
+      </p>
       <form id="authForm" class="stack">
         <input id="aName" class="hidden" placeholder="Your name" />
         <input id="aCompany" class="hidden" placeholder="Company" />
-        <input id="aEmail" type="email" required placeholder="Email" />
-        <input id="aPass" type="password" required minlength="6" placeholder="Password" />
+        <input id="aEmail" type="email" required placeholder="Email" autocomplete="username" value="demo@ledgertwin.dev" />
+        <input id="aPass" type="password" required minlength="6" placeholder="Password" autocomplete="current-password" value="demo1234" />
         <div class="err" id="authErr"></div>
         <button class="btn btn-main" id="authGo">Continue</button>
       </form>
@@ -395,7 +398,13 @@
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
         });
         const out = await res.json();
-        if (!res.ok) throw new Error(typeof out.detail === "string" ? out.detail : "Auth failed");
+        if (!res.ok) {
+          const d = out.detail;
+          let msg = "Auth failed";
+          if (typeof d === "string") msg = d;
+          else if (Array.isArray(d)) msg = d.map((x) => x.msg || JSON.stringify(x)).join("; ");
+          throw new Error(msg);
+        }
         localStorage.setItem(KEY, out.access_token);
         toast(mode === "login" ? "Welcome back" : "Account created");
         await boot();
@@ -458,7 +467,7 @@
         <div class="row clickable" onclick="openInvoice('${i.id}')">
           <div>
             <strong>${i.name || "Invoice"}</strong>
-            <div class="muted">${i.client_name || "No client"}${i.website ? ` · <a href="${i.website}" target="_blank" rel="noopener">${i.website.replace(/^https?:\\/\\//,'')}</a>` : ""} · ${statusPill(i.status)}</div>
+            <div class="muted">${i.client_name || "No client"}${i.website ? ` · <a href="${i.website}" target="_blank" rel="noopener">${String(i.website).replace("https://","").replace("http://","")}</a>` : ""} · ${statusPill(i.status)}</div>
           </div>
           <div style="text-align:right">
             <div><strong>${money(i.amount)}</strong></div>
