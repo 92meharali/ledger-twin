@@ -1,0 +1,13 @@
+.env
+.env.local
+*.pyc
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+sqlite/*.db
+*.db
+node_modules/
+.scratch/**/secrets/
