@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ledger Twin — Reliability Scorecard</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --ink: #e8eef8;
+      --muted: #8fa0b8;
+      --accent: #2dd4bf;
+      --warn: #f59e0b;
+      --bad: #f87171;
+      --good: #34d399;
+      --line: #243049;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #16324f 0%, var(--bg) 55%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    header {
+      padding: 28px 32px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -0.02em;
+    }
+    .sub { color: var(--muted); margin-top: 6px; font-size: 14px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      background: var(--accent);
+      color: #042f2e;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary { background: #1f2a40; color: var(--ink); border: 1px solid var(--line); }
+    main { padding: 16px 32px 40px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .value { font-size: 28px; font-weight: 700; margin-top: 8px; }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .panels {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #1f2a40;
+      border: 1px solid var(--line);
+      font-size: 11px;
+    }
+    .triad { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    #status { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    pre {
+      background: #0a101b;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      max-height: 260px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Ledger Twin</h1>
+      <div class="sub">Reliability scorecard — identity · idempotency · ownership</div>
+      <div id="status">Loading…</div>
+    </div>
+    <div class="actions">
+      <button onclick="refresh()">Refresh</button>
+      <button class="secondary" onclick="runEval()">Run /eval</button>
+      <button class="secondary" onclick="runKiller()">Killer demo</button>
+      <a class="secondary" href="/app" style="display:inline-block;padding:10px 14px;border-radius:8px;text-decoration:none;background:#1f2a40;color:#e8eef8;border:1px solid #243049;font-weight:700;">User workspace</a>
+    </div>
+  </header>
+  <main>
+    <section class="grid" id="metrics"></section>
+    <section class="panels">
+      <div class="card">
+        <div class="label">Recent events</div>
+        <div style="margin-top:10px; overflow:auto; max-height:420px;">
+          <table>
+            <thead>
+              <tr><th>Status</th><th>Event</th><th>Triad</th></tr>
+            </thead>
+            <tbody id="events"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Pending actions / latest eval</div>
+        <div id="side" style="margin-top:10px;"></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    function pct(x) {
+      if (x == null) return "—";
+      return Math.round(Number(x) * 1000) / 10 + "%";
+    }
+    function tone(x, goodHigh) {
+      if (x == null) return "";
+      if (goodHigh) return x >= 0.8 ? "good" : x >= 0.5 ? "warn" : "bad";
+      return x <= 0.2 ? "good" : x <= 0.5 ? "warn" : "bad";
+    }
+    async function refresh() {
+      const res = await fetch("/scorecard");
+      const data = await res.json();
+      document.getElementById("status").textContent =
+        "Updated " + (data.generated_at || "") +
+        " · pending open " + ((data.counts && data.counts.pending_actions_open) || 0);
+      const metrics = [
+        ["Entity resolution", pct(data.entity_resolution_accuracy), tone(data.entity_resolution_accuracy, true)],
+        ["Duplicate catch", pct(data.duplicate_catch_rate), tone(data.duplicate_catch_rate, true)],
+        ["Escalation rate", pct(data.escalation_rate), tone(data.escalation_rate, false)],
+        ["False merge", pct(data.false_merge_rate), tone(data.false_merge_rate, false)],
+        ["Eval pass", (data.eval_pass_count || 0) + " / " + (data.eval_total || 0), ""],
+        ["Silent wrong", String(data.silent_wrong_completions || 0), (data.silent_wrong_completions ? "bad" : "good")],
+      ];
+      document.getElementById("metrics").innerHTML = metrics.map(([l,v,c]) =>
+        `<div class="card"><div class="label">${l}</div><div class="value ${c}">${v}</div></div>`
+      ).join("");
+
+      const events = data.recent_events || [];
+      document.getElementById("events").innerHTML = events.map(e => {
+        const t = e.triad || {};
+        return `<tr>
+          <td><span class="pill">${e.status || ""}</span></td>
+          <td><div>${e.source || ""} / ${e.type || ""}</div>
+              <div class="triad">${e.external_id || ""} · ${(e.amount_cents!=null)?("$"+(e.amount_cents/100).toFixed(2)):""}</div></td>
+          <td class="triad">same=${t.same_entity||"—"}<br/>happened=${t.already_happened||"—"}<br/>who=${t.who_acts||"—"} · conf=${t.confidence??"—"}</td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="3">No events yet</td></tr>`;
+
+      const pending = data.pending_actions || [];
+      const evalBlock = data.latest_eval
+        ? `<pre>${JSON.stringify(data.latest_eval, null, 2)}</pre>`
+        : `<div class="triad">No eval run yet. Click Run /eval.</div>`;
+      document.getElementById("side").innerHTML = `
+        <div class="label" style="margin-bottom:8px;">Open pending</div>
+        ${pending.length ? pending.map(p => `
+          <div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line);">
+            <div><span class="pill">${p.reason}</span> ${p.external_id}</div>
+            <div class="triad">${p.id}</div>
+            <div style="margin-top:6px; display:flex; gap:6px;">
+              <button onclick="decide('${p.id}','approve')">Approve</button>
+              <button class="secondary" onclick="decide('${p.id}','reject')">Reject</button>
+            </div>
+          </div>`).join("") : `<div class="triad">No open pending actions</div>`}
+        <div class="label" style="margin:14px 0 8px;">Latest eval</div>
+        ${evalBlock}
+      `;
+    }
+    async function runEval() {
+      document.getElementById("status").textContent = "Running eval suite…";
+      await fetch("/eval/run", { method: "POST" });
+      await refresh();
+    }
+    async function runKiller() {
+      document.getElementById("status").textContent = "Running killer demo path…";
+      const res = await fetch("/demo/killer", { method: "POST" });
+      const data = await res.json();
+      alert(JSON.stringify(data.summary || data, null, 2));
+      await refresh();
+    }
+    async function decide(id, decision) {
+      await fetch(`/demo/pending/${id}/${decision}`, { method: "POST" });
+      await refresh();
+    }
+    refresh();
+    setInterval(refresh, 8000);
+  </script>
+</body>
+</html>

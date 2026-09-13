@@ -1,59 +1,79 @@
 # Ledger Twin
 
-Payment & identity reconciliation agent for the **Lemma × Comma Capital Hackathon** (Sep 13, 2026).
+Payment & identity reconciliation agent for the **Lemma × Comma Capital Hackathon**.
 
 > Your books lie until payments, emails, and client names agree.
 
-## What it is
+## What it does
 
-An agentic pipeline that reconciles Stripe payments, email payment signals, and Airtable ledger records with:
+An agentic pipeline that reconciles **Stripe** payments and **temp-mail** payment signals against an **Airtable** ledger:
 
-- Idempotency guards (duplicate webhook / double-action protection)
-- Fuzzy + Claude entity resolution
-- Strict match policy (no silent wrong merges)
-- Slack human-in-the-loop when confidence is low
+- Idempotency guard (duplicate webhook / double-action protection)
+- Fuzzy entity resolution (RapidFuzz) + OpenAI middle-band judgment
+- Strict match policy (no silent wrong merges / false full-pay)
+- Local HITL Approve/Reject (Slack deferred)
 - Axiom observability
-- Temp-mail (mail.tm) for disposable payment-email demos
-- A live reliability scorecard + `/eval/run` harness
+- Reliability scorecard + `/eval/run` harness
+- User workspace with auth, invoices, tasks, history, light/dark mode
 
-## External services (≥3 required)
+## Apps / URLs (local)
 
-| # | Service | Role |
-|---|---|---|
-| 1 | Stripe (test) | Payment / invoice events |
-| 2 | Airtable | Canonical ledger |
-| 3 | Slack | HITL Approve / Reject |
-| 4 | Axiom | Agent event observability |
-| 5 | Temp mail (mail.tm) | Disposable inbox for payment emails |
+| URL | Purpose |
+|---|---|
+| http://127.0.0.1:8000/app | User workspace (signup/login) |
+| http://127.0.0.1:8000/dashboard | Ops reliability scorecard |
+| http://127.0.0.1:8000/docs | API docs |
 
-LLM: Anthropic Claude (agent reasoning — not counted as an “app” integration).
+## External services
 
-## Build tickets
+| Service | Role |
+|---|---|
+| Stripe (test) | Payment / invoice webhooks |
+| Airtable | Clients, Invoices, Payments, EventLog |
+| Axiom | Agent event ingest / observability |
+| Temp mail (mail.tm) | Disposable inbox for payment-email signals |
+| OpenAI | Entity-resolution reasoning |
 
-Vertical slices live in [`.scratch/ledger-twin/issues/`](.scratch/ledger-twin/issues/):
-
-1. [Stripe → Idempotency → Airtable + Axiom spine](.scratch/ledger-twin/issues/01-stripe-idempotency-airtable-axiom-spine.md)
-2. [Entity resolve + strict payment↔invoice match](.scratch/ledger-twin/issues/02-entity-resolve-strict-match.md) ← blocked by 01
-3. [Slack HITL + temp-mail payment signals](.scratch/ledger-twin/issues/03-slack-hitl-temp-mail.md) ← blocked by 02
-4. [Scorecard + `/eval/run` + killer demo](.scratch/ledger-twin/issues/04-scorecard-eval-demo.md) ← blocked by 03
-
-```
-01 ──► 02 ──► 03 ──► 04
-```
-
-## Spec
-
-Full build spec (workflow, features, tests): [`Ledger_Twin_Hackathon_Spec.pdf`](Ledger_Twin_Hackathon_Spec.pdf)
-
-## Secrets / setup
-
-See [`SECRETS.md`](SECRETS.md) for every key, what it’s for, and **direct signup links**.
+## Quick start
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
-# fill .env using SECRETS.md
+# fill secrets — see SECRETS.md
+
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Stack (planned)
+Stripe local webhooks:
 
-Python 3.11 · FastAPI · LangGraph · Claude · RapidFuzz · SQLite · Airtable · Slack · Axiom · mail.tm
+```bash
+stripe listen --forward-to localhost:8000/webhooks/stripe
+# paste whsec_… into .env as STRIPE_WEBHOOK_SECRET, restart API
+stripe trigger payment_intent.succeeded
+```
+
+## Repo layout
+
+```
+app/           FastAPI agent + auth + static UIs
+scripts/       Airtable / setup helpers
+.scratch/      Ticket specs
+DEMO.md        Killer demo script
+SECRETS.md     Keys + signup links
+.env.example   Env template (no secrets)
+```
+
+## Tickets
+
+1. [01 — Stripe spine](.scratch/ledger-twin/issues/01-stripe-idempotency-airtable-axiom-spine.md) — done  
+2. [02 — Resolve + match](.scratch/ledger-twin/issues/02-entity-resolve-strict-match.md) — done  
+3. [03 — Temp mail (+ Slack deferred)](.scratch/ledger-twin/issues/03-slack-hitl-temp-mail.md) — temp mail done  
+4. [04 — Scorecard + eval](.scratch/ledger-twin/issues/04-scorecard-eval-demo.md) — done  
+
+Full build PDF: [`Ledger_Twin_Hackathon_Spec.pdf`](Ledger_Twin_Hackathon_Spec.pdf)
+
+## Security note
+
+Never commit `.env`. Rotate any keys that were shared in chat after the hackathon.

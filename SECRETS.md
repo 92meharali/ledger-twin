@@ -6,13 +6,16 @@ Copy `.env.example` → `.env`, then fill each value below. **Never commit `.env
 
 ## Required for the hackathon build
 
-### 1. Anthropic (Claude) — agent reasoning
+### 1. OpenAI (LLM) — agent reasoning
 | Env var | What it is |
 |---|---|
-| `ANTHROPIC_API_KEY` | API key for Claude |
-| `ANTHROPIC_MODEL` | Model id (default in `.env.example` is fine) |
+| `LLM_PROVIDER` | Set to `openai` |
+| `OPENAI_API_KEY` | OpenAI API key (`sk-proj-…` or `sk-…`) |
+| `OPENAI_MODEL` | e.g. `gpt-4o-mini` |
 
-**Get it here:** https://console.anthropic.com/settings/keys
+**Get it here:** https://platform.openai.com/api-keys  
+
+(Groq / Anthropic in `.env.example` are optional fallbacks — **not required**.)
 
 ---
 
@@ -21,15 +24,17 @@ Copy `.env.example` → `.env`, then fill each value below. **Never commit `.env
 |---|---|
 | `STRIPE_SECRET_KEY` | Test secret key (`sk_test_…`) |
 | `STRIPE_PUBLISHABLE_KEY` | Test publishable key (`pk_test_…`) |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret for your webhook endpoint (`whsec_…`) |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret — **get later via Stripe CLI** (`whsec_…`) |
 
 **Get API keys:** https://dashboard.stripe.com/test/apikeys  
-**Create webhook endpoint:** https://dashboard.stripe.com/test/webhooks  
 
-Webhook URL (after you have a public URL):  
-`{PUBLIC_BASE_URL}/webhooks/stripe`  
+**Webhook:** skip the Dashboard endpoint for now. After the app runs:
 
-Events to subscribe: `payment_intent.succeeded`, `invoice.paid`
+```bash
+stripe listen --forward-to localhost:8000/webhooks/stripe
+```
+
+Paste the printed `whsec_…` into `STRIPE_WEBHOOK_SECRET`.
 
 ---
 
@@ -154,11 +159,11 @@ Temp mail covers the email path for the hackathon demo — do Gmail only if you 
 
 ## Minimum checklist (copy/paste)
 
-- [ ] https://console.anthropic.com/settings/keys → `ANTHROPIC_API_KEY`
-- [ ] https://dashboard.stripe.com/test/apikeys → `STRIPE_SECRET_KEY` + `STRIPE_PUBLISHABLE_KEY`
-- [ ] https://dashboard.stripe.com/test/webhooks → `STRIPE_WEBHOOK_SECRET`
-- [ ] https://airtable.com/create/tokens → `AIRTABLE_API_KEY` + base → `AIRTABLE_BASE_ID`
-- [ ] https://api.slack.com/apps → `SLACK_BOT_TOKEN` + `SLACK_SIGNING_SECRET` + `SLACK_CHANNEL_ID`
-- [ ] https://app.axiom.co/settings/api-tokens → `AXIOM_TOKEN` + dataset → `AXIOM_DATASET`
-- [ ] https://docs.mail.tm/ → create inbox → `TEMP_MAIL_*`
-- [ ] https://dashboard.ngrok.com/get-started/your-authtoken → run ngrok → `PUBLIC_BASE_URL`
+- [x] https://platform.openai.com/api-keys → `OPENAI_API_KEY` (+ `LLM_PROVIDER=openai`)
+- [x] https://dashboard.stripe.com/test/apikeys → `STRIPE_SECRET_KEY` + `STRIPE_PUBLISHABLE_KEY`
+- [ ] `STRIPE_WEBHOOK_SECRET` — later via `stripe listen` (not needed yet)
+- [x] Airtable → `AIRTABLE_API_KEY` + `AIRTABLE_BASE_ID=apphXdxfzsOQ2a4G2`
+- [x] Axiom → `AXIOM_TOKEN` + `AXIOM_DATASET=ledger-twin` + `AXIOM_EDGE=us-east-1.aws.edge.axiom.co`
+- [ ] https://api.slack.com/apps → Slack (ticket 03)
+- [ ] https://docs.mail.tm/ → temp mail (ticket 03)
+- [ ] Public URL / ngrok — optional if using Stripe CLI locally

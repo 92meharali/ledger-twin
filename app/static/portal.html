@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ledger Twin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root, [data-theme="light"] {
+      --bg: #f3f1ec;
+      --bg-accent: #e7eef2;
+      --panel: #ffffff;
+      --ink: #15202b;
+      --muted: #5d6b78;
+      --line: #d7dee5;
+      --brand: #0f766e;
+      --brand-soft: #ccfbf1;
+      --good: #15803d;
+      --warn: #b45309;
+      --bad: #b91c1c;
+      --shadow: 0 10px 30px rgba(21, 32, 43, 0.08);
+      --toast: #0f766e;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1220;
+      --bg-accent: #122033;
+      --panel: #121c2c;
+      --ink: #e8eef7;
+      --muted: #93a4b8;
+      --line: #243247;
+      --brand: #2dd4bf;
+      --brand-soft: rgba(45, 212, 191, 0.12);
+      --good: #4ade80;
+      --warn: #fbbf24;
+      --bad: #f87171;
+      --shadow: 0 12px 40px rgba(0,0,0,0.35);
+      --toast: #2dd4bf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Outfit, system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 0% 0%, var(--bg-accent), transparent 55%),
+        var(--bg);
+      transition: background .25s ease, color .25s ease;
+    }
+    h1, h2, .serif { font-family: "Source Serif 4", Georgia, serif; }
+    button, input, select, textarea { font: inherit; }
+    .hidden { display: none !important; }
+
+    /* AUTH */
+    .auth {
+      min-height: 100vh; display: grid; place-items: center; padding: 24px;
+    }
+    .auth-card {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      animation: rise .45s ease both;
+    }
+    .logo { font-size: 28px; margin: 0 0 6px; }
+    .logo em { color: var(--brand); font-style: normal; }
+    .tabs { display: flex; gap: 8px; margin: 18px 0 14px; }
+    .tabs button {
+      flex: 1; border: 1px solid var(--line); background: transparent;
+      border-radius: 999px; padding: 10px; cursor: pointer; color: var(--ink);
+    }
+    .tabs button.on { background: var(--brand); color: #042f2e; border-color: transparent; font-weight: 700; }
+    .stack { display: grid; gap: 10px; }
+    input, textarea, select {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; background: var(--bg); color: var(--ink);
+    }
+    .btn {
+      border: 0; border-radius: 12px; padding: 11px 16px; cursor: pointer;
+      font-weight: 600; transition: transform .15s ease, opacity .15s ease;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-main { background: var(--brand); color: #042f2e; }
+    .btn-soft { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+    .btn-danger { background: rgba(185,28,28,.1); color: var(--bad); border: 1px solid rgba(185,28,28,.25); }
+    .err { color: var(--bad); font-size: 13px; min-height: 18px; }
+    .muted { color: var(--muted); }
+
+    /* APP SHELL */
+    .app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .side { display: none; } }
+    .side {
+      background: var(--panel); border-right: 1px solid var(--line);
+      padding: 22px 16px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .side .navbtn {
+      text-align: left; border: 0; background: transparent; color: var(--muted);
+      padding: 12px 14px; border-radius: 12px; cursor: pointer; font-weight: 500;
+    }
+    .side .navbtn.on, .side .navbtn:hover { background: var(--brand-soft); color: var(--ink); }
+    .main { padding: 24px; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 22px; flex-wrap: wrap;
+    }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+      padding: 16px; box-shadow: var(--shadow); animation: rise .4s ease both;
+    }
+    .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+    .section { margin-top: 18px; }
+    .section h2 { margin: 0 0 12px; font-size: 24px; }
+    .split { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px; }
+    @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+    .row {
+      display: flex; justify-content: space-between; gap: 12px; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid var(--line);
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+      background: var(--brand-soft); color: var(--brand);
+    }
+    .pill.open { background: rgba(180,83,9,.12); color: var(--warn); }
+    .pill.paid { background: rgba(21,128,61,.12); color: var(--good); }
+    .pill.partial { background: rgba(180,83,9,.12); color: var(--warn); }
+    .pill.bad { background: rgba(185,28,28,.12); color: var(--bad); }
+
+    .clickable { cursor: pointer; transition: background .15s ease; border-radius: 12px; padding: 10px 8px; }
+    .clickable:hover { background: var(--brand-soft); }
+
+    /* Drawer */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(10,16,24,.45);
+      display: grid; justify-items: end; z-index: 40;
+      animation: fade .2s ease;
+    }
+    .drawer {
+      width: min(440px, 100%); height: 100%; background: var(--panel);
+      border-left: 1px solid var(--line); padding: 22px; overflow: auto;
+      animation: slide .28s ease;
+    }
+    .drawer h3 { margin: 0 0 4px; font-size: 26px; }
+    .toast {
+      position: fixed; right: 18px; bottom: 18px; z-index: 60;
+      background: var(--toast); color: #042f2e; padding: 12px 16px;
+      border-radius: 14px; font-weight: 700; box-shadow: var(--shadow);
+      animation: pop .35s cubic-bezier(.2,1.2,.3,1);
+    }
+    .check {
+      display: inline-grid; place-items: center; width: 22px; height: 22px;
+      border-radius: 50%; background: #042f2e; color: var(--toast); margin-right: 8px;
+      animation: pop .35s ease;
+    }
+    .chart-box { height: 240px; }
+    .timeline .item { padding: 12px 0 12px 14px; border-left: 2px solid var(--line); margin-left: 6px; position: relative; }
+    .timeline .item::before {
+      content: ""; position: absolute; left: -5px; top: 16px; width: 8px; height: 8px;
+      border-radius: 50%; background: var(--brand);
+    }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slide { from { transform: translateX(24px); opacity: .5; } to { transform: none; opacity: 1; } }
+    @keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+    .done-flash { animation: pop .4s ease; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="auth" class="auth">
+    <div class="auth-card">
+      <h1 class="logo">Ledger <em>Twin</em></h1>
+      <p class="muted" id="authSub">Simple workspace for payments, invoices, and decisions.</p>
+      <div class="tabs">
+        <button type="button" class="on" id="tabLogin">Log in</button>
+        <button type="button" id="tabSignup">Sign up</button>
+      </div>
+      <form id="authForm" class="stack">
+        <input id="aName" class="hidden" placeholder="Your name" />
+        <input id="aCompany" class="hidden" placeholder="Company" />
+        <input id="aEmail" type="email" required placeholder="Email" />
+        <input id="aPass" type="password" required minlength="6" placeholder="Password" />
+        <div class="err" id="authErr"></div>
+        <button class="btn btn-main" id="authGo">Continue</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="app hidden">
+    <aside class="side">
+      <h1 class="logo" style="font-size:22px;padding:0 8px 12px;">Ledger <em>Twin</em></h1>
+      <button class="navbtn on" data-go="home">Home</button>
+      <button class="navbtn" data-go="invoices">Invoices</button>
+      <button class="navbtn" data-go="tasks">Tasks</button>
+      <button class="navbtn" data-go="history">History & logs</button>
+      <button class="navbtn" data-go="setup">Setup status</button>
+      <button class="navbtn" data-go="profile">Profile</button>
+      <div style="flex:1"></div>
+      <button class="navbtn" id="themeBtn">Toggle light / dark</button>
+      <a class="navbtn" href="/dashboard" style="text-decoration:none;">Ops scorecard</a>
+      <button class="navbtn" id="logoutBtn">Log out</button>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2 class="serif" style="margin:0;font-size:30px;" id="pageTitle">Home</h2>
+          <div class="muted" id="hello"></div>
+        </div>
+        <button class="btn btn-soft" id="refreshBtn">Refresh</button>
+      </div>
+
+      <!-- HOME -->
+      <section id="page-home">
+        <div class="cards" id="summary"></div>
+        <div class="section split">
+          <div class="card">
+            <h2>Needs your decision</h2>
+            <div id="homeTasks"></div>
+          </div>
+          <div class="card">
+            <h2>At a glance</h2>
+            <div class="chart-box"><canvas id="homeChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVOICES -->
+      <section id="page-invoices" class="hidden">
+        <div class="card">
+          <h2>All invoices</h2>
+          <p class="muted">Click any invoice to view full details and edit.</p>
+          <div id="invoiceList"></div>
+        </div>
+      </section>
+
+      <!-- TASKS -->
+      <section id="page-tasks" class="hidden">
+        <div class="card">
+          <h2>Pending tasks</h2>
+          <p class="muted">Approve or reject agent escalations.</p>
+          <div id="taskList"></div>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section id="page-history" class="hidden">
+        <div class="card">
+          <h2>History & logging</h2>
+          <div class="muted" id="histMeta" style="margin-bottom:10px;"></div>
+          <div class="timeline" id="historyList"></div>
+        </div>
+      </section>
+
+      <!-- SETUP -->
+      <section id="page-setup" class="hidden">
+        <div class="split">
+          <div class="card">
+            <h2>Ready</h2>
+            <div id="haveList"></div>
+          </div>
+          <div class="card">
+            <h2>Still missing</h2>
+            <div id="missingList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PROFILE -->
+      <section id="page-profile" class="hidden">
+        <div class="card" style="max-width:520px;">
+          <h2>Your profile</h2>
+          <form id="profileForm" class="stack">
+            <input id="pName" placeholder="Full name" />
+            <input id="pCompany" placeholder="Company" />
+            <input id="pEmail" type="email" placeholder="Email" />
+            <textarea id="pBio" placeholder="Notes about your business"></textarea>
+            <div class="err" id="profileErr"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-main" type="submit">Save</button>
+              <button class="btn btn-danger" type="button" id="deleteBtn">Delete account</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- INVOICE DRAWER -->
+  <div id="drawer" class="overlay hidden">
+    <div class="drawer">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;">
+        <div>
+          <h3 class="serif" id="dTitle">Invoice</h3>
+          <div class="muted" id="dSub"></div>
+        </div>
+        <button class="btn btn-soft" id="closeDrawer">Close</button>
+      </div>
+      <form id="invoiceForm" class="stack" style="margin-top:18px;">
+        <label class="label">Name</label>
+        <input id="iName" />
+        <label class="label">Client</label>
+        <input id="iClient" />
+        <label class="label">Status</label>
+        <select id="iStatus">
+          <option value="open">open</option>
+          <option value="partial">partial</option>
+          <option value="paid">paid</option>
+          <option value="void">void</option>
+        </select>
+        <label class="label">Amount (USD)</label>
+        <input id="iAmount" type="number" step="0.01" />
+        <label class="label">Remaining (USD)</label>
+        <input id="iRemaining" type="number" step="0.01" />
+        <label class="label">Currency</label>
+        <input id="iCurrency" />
+        <label class="label">Notes</label>
+        <textarea id="iNotes" placeholder="Scope, PO number, reminders…"></textarea>
+        <button class="btn btn-main" type="submit">Save invoice</button>
+      </form>
+      <h2 style="margin:22px 0 8px;font-size:18px;">Linked payments</h2>
+      <div id="iPayments"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+    const KEY = "lt_token";
+    const THEME_KEY = "lt_theme";
+    let mode = "login";
+    let data = null;
+    let activeInvoice = null;
+    let chart = null;
+
+    const $ = (id) => document.getElementById(id);
+    const token = () => localStorage.getItem(KEY);
+    const headers = () => ({ "Content-Type": "application/json", Authorization: "Bearer " + token() });
+    const money = (n) => "$" + Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    function applyTheme(t) {
+      document.documentElement.setAttribute("data-theme", t);
+      localStorage.setItem(THEME_KEY, t);
+    }
+    applyTheme(localStorage.getItem(THEME_KEY) || "light");
+    $("themeBtn").onclick = () => {
+      const cur = document.documentElement.getAttribute("data-theme");
+      applyTheme(cur === "light" ? "dark" : "light");
+      toast(cur === "light" ? "Dark mode on" : "Light mode on");
+    };
+
+    function toast(msg, ok = true) {
+      const el = $("toast");
+      el.innerHTML = (ok ? '<span class="check">✓</span>' : "") + msg;
+      el.classList.remove("hidden");
+      clearTimeout(window.__tt);
+      window.__tt = setTimeout(() => el.classList.add("hidden"), 2200);
+    }
+
+    function setAuthMode(m) {
+      mode = m;
+      $("tabLogin").classList.toggle("on", m === "login");
+      $("tabSignup").classList.toggle("on", m === "signup");
+      $("aName").classList.toggle("hidden", m !== "signup");
+      $("aCompany").classList.toggle("hidden", m !== "signup");
+      $("authGo").textContent = m === "login" ? "Log in" : "Create account";
+      $("authSub").textContent = m === "login"
+        ? "Simple workspace for payments, invoices, and decisions."
+        : "Create an account to manage your ledger.";
+      $("authErr").textContent = "";
+    }
+    $("tabLogin").onclick = () => setAuthMode("login");
+    $("tabSignup").onclick = () => setAuthMode("signup");
+
+    $("authForm").onsubmit = async (e) => {
+      e.preventDefault();
+      $("authErr").textContent = "";
+      const body = { email: $("aEmail").value.trim(), password: $("aPass").value };
+      if (mode === "signup") {
+        body.full_name = $("aName").value.trim();
+        body.company = $("aCompany").value.trim();
+      }
+      try {
+        const res = await fetch(mode === "login" ? "/auth/login" : "/auth/signup", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+        });
+        const out = await res.json();
+        if (!res.ok) throw new Error(typeof out.detail === "string" ? out.detail : "Auth failed");
+        localStorage.setItem(KEY, out.access_token);
+        toast(mode === "login" ? "Welcome back" : "Account created");
+        await boot();
+      } catch (err) {
+        $("authErr").textContent = err.message || String(err);
+      }
+    };
+
+    $("logoutBtn").onclick = () => { localStorage.removeItem(KEY); location.reload(); };
+    $("refreshBtn").onclick = () => load().then(() => toast("Updated"));
+
+    document.querySelectorAll(".navbtn[data-go]").forEach((b) => {
+      b.onclick = () => go(b.dataset.go);
+    });
+
+    function go(name) {
+      document.querySelectorAll(".navbtn[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === name));
+      ["home","invoices","tasks","history","setup","profile"].forEach((p) => {
+        $("page-" + p).classList.toggle("hidden", p !== name);
+      });
+      const titles = {
+        home: "Home", invoices: "Invoices", tasks: "Tasks",
+        history: "History & logs", setup: "Setup status", profile: "Profile"
+      };
+      $("pageTitle").textContent = titles[name] || "Home";
+      if (name === "history") loadHistory();
+      if (name === "profile" && data) fillProfile(data.user);
+    }
+
+    function statusPill(st) {
+      const s = String(st || "").toLowerCase();
+      const cls = s === "paid" ? "paid" : (s === "open" || s === "partial" ? "open" : "");
+      return `<span class="pill ${cls}">${st || "—"}</span>`;
+    }
+
+    function render() {
+      if (!data) return;
+      const u = data.user || {};
+      const s = data.summary || {};
+      $("hello").textContent = (u.full_name || u.email || "User") + (u.company ? " · " + u.company : "");
+
+      const cards = [
+        ["To collect", money(s.open_amount_usd)],
+        ["Collected", money(s.collected_usd)],
+        ["Open invoices", s.open_invoices],
+        ["Paid invoices", s.paid_invoices],
+        ["Tasks waiting", s.pending_actions],
+        ["Duplicates blocked", s.duplicates_blocked],
+      ];
+      $("summary").innerHTML = cards.map(([l,v], i) =>
+        `<div class="card" style="animation-delay:${i*40}ms"><div class="label">${l}</div><div class="value">${v}</div></div>`
+      ).join("");
+
+      const tasks = data.pending_actions || [];
+      $("homeTasks").innerHTML = tasks.slice(0,5).map(taskRow).join("") || `<div class="muted">Nothing waiting — nice.</div>`;
+      $("taskList").innerHTML = tasks.map(taskRow).join("") || `<div class="muted">No pending tasks</div>`;
+
+      const inv = data.invoices || [];
+      $("invoiceList").innerHTML = inv.map((i) => `
+        <div class="row clickable" onclick="openInvoice('${i.id}')">
+          <div>
+            <strong>${i.name || "Invoice"}</strong>
+            <div class="muted">${i.client_name || "No client"} · ${statusPill(i.status)}</div>
+          </div>
+          <div style="text-align:right">
+            <div><strong>${money(i.amount)}</strong></div>
+            <div class="muted">left ${money(i.remaining)}</div>
+          </div>
+        </div>`).join("") || `<div class="muted">No invoices yet</div>`;
+
+      $("haveList").innerHTML = (data.have || []).map((x) =>
+        `<div class="row"><div><span class="pill paid">ready</span> <strong>${x.label}</strong><div class="muted">${x.detail}</div></div></div>`
+      ).join("");
+      $("missingList").innerHTML = (data.missing || []).map((x) =>
+        `<div class="row"><div><span class="pill bad">missing</span> <strong>${x.label}</strong><div class="muted">${x.detail}</div></div></div>`
+      ).join("") || `<div class="muted">All set.</div>`;
+
+      const st = data.charts.status;
+      if (chart) chart.destroy();
+      chart = new Chart($("homeChart"), {
+        type: "doughnut",
+        data: {
+          labels: st.labels,
+          datasets: [{ data: st.values, backgroundColor: ["#0f766e","#b45309","#3b82f6","#64748b"] }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { color: getComputedStyle(document.documentElement).getPropertyValue("--muted") } } },
+        },
+      });
+    }
+
+    function taskRow(p) {
+      return `<div class="row" id="task-${p.id}">
+        <div>
+          <span class="pill open">${p.reason}</span>
+          <div style="margin-top:6px"><strong>${p.external_id}</strong></div>
+          <div class="muted" style="font-size:12px">${p.id}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-main" onclick="decide('${p.id}','approve')">Approve</button>
+          <button class="btn btn-soft" onclick="decide('${p.id}','reject')">Reject</button>
+        </div>
+      </div>`;
+    }
+
+    async function decide(id, decision) {
+      const res = await fetch(`/api/user/tasks/${id}/${decision}`, { method: "POST", headers: headers() });
+      const out = await res.json();
+      if (!res.ok) return toast(out.detail || "Failed", false);
+      const row = document.getElementById("task-" + id);
+      if (row) {
+        row.classList.add("done-flash");
+        row.innerHTML = `<div><span class="pill paid">${decision}d</span> <span class="muted">Task finished</span></div>`;
+      }
+      toast(decision === "approve" ? "Approved — ledger updated" : "Rejected — no changes");
+      await load(false);
+    }
+    window.decide = decide;
+
+    async function openInvoice(id) {
+      const res = await fetch(`/api/user/invoices/${id}`, { headers: headers() });
+      const out = await res.json();
+      if (!res.ok) return toast(out.detail || "Could not load invoice", false);
+      activeInvoice = out.invoice;
+      $("dTitle").textContent = out.invoice.name || "Invoice";
+      $("dSub").textContent = (out.invoice.client_name || "") + " · " + (out.invoice.status || "");
+      $("iName").value = out.invoice.name || "";
+      $("iClient").value = out.invoice.client_name || "";
+      $("iStatus").value = (out.invoice.status || "open").toLowerCase();
+      $("iAmount").value = out.invoice.amount ?? 0;
+      $("iRemaining").value = out.invoice.remaining ?? 0;
+      $("iCurrency").value = out.invoice.currency || "usd";
+      $("iNotes").value = out.invoice.notes || "";
+      $("iPayments").innerHTML = (out.payments || []).map((p) =>
+        `<div class="row"><div><strong>${p.name || p.external_id}</strong><div class="muted">${p.source} · ${p.status}</div></div><div>${money(p.amount)}</div></div>`
+      ).join("") || `<div class="muted">No payments linked yet</div>`;
+      $("drawer").classList.remove("hidden");
+    }
+    window.openInvoice = openInvoice;
+
+    $("closeDrawer").onclick = () => $("drawer").classList.add("hidden");
+    $("drawer").addEventListener("click", (e) => { if (e.target === $("drawer")) $("drawer").classList.add("hidden"); });
+
+    $("invoiceForm").onsubmit = async (e) => {
+      e.preventDefault();
+      if (!activeInvoice) return;
+      const body = {
+        name: $("iName").value,
+        client_name: $("iClient").value,
+        status: $("iStatus").value,
+        currency: $("iCurrency").value,
+        notes: $("iNotes").value,
+        amount_usd: Number($("iAmount").value),
+        remaining_usd: Number($("iRemaining").value),
+      };
+      const res = await fetch(`/api/user/invoices/${activeInvoice.id}`, {
+        method: "PATCH", headers: headers(), body: JSON.stringify(body)
+      });
+      const out = await res.json();
+      if (!res.ok) return toast(out.detail || "Save failed", false);
+      toast("Invoice saved");
+      $("drawer").classList.add("hidden");
+      await load(false);
+      go("invoices");
+    };
+
+    async function loadHistory() {
+      const res = await fetch("/api/user/history", { headers: headers() });
+      const out = await res.json();
+      if (!res.ok) return;
+      $("histMeta").textContent =
+        `Claimed events: ${out.idempotency.claimed} · Blocked duplicates: ${out.idempotency.blocked}`;
+      $("historyList").innerHTML = (out.events || []).map((e) => {
+        const t = e.triad || {};
+        return `<div class="item">
+          <div>${statusPill(e.status)} <strong>${e.source || ""} / ${e.type || ""}</strong></div>
+          <div class="muted" style="margin-top:4px">${e.external_id || ""} · ${e.timestamp || ""}</div>
+          <div class="muted" style="margin-top:4px;font-size:12px">
+            same=${t.same_entity || "—"} · happened=${t.already_happened || "—"} · who=${t.who_acts || "—"}
+          </div>
+          <div style="margin-top:6px">${e.message || ""}</div>
+        </div>`;
+      }).join("") || `<div class="muted">No log entries yet</div>`;
+    }
+
+    function fillProfile(u) {
+      $("pName").value = u.full_name || "";
+      $("pCompany").value = u.company || "";
+      $("pEmail").value = u.email || "";
+      $("pBio").value = u.bio || "";
+      $("profileErr").textContent = "";
+    }
+
+    $("profileForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const res = await fetch("/auth/me", {
+        method: "PATCH", headers: headers(),
+        body: JSON.stringify({
+          full_name: $("pName").value, company: $("pCompany").value,
+          email: $("pEmail").value, bio: $("pBio").value
+        })
+      });
+      const out = await res.json();
+      if (!res.ok) { $("profileErr").textContent = out.detail || "Failed"; return; }
+      data.user = out.user;
+      toast("Profile saved");
+      render();
+    };
+
+    $("deleteBtn").onclick = async () => {
+      if (!confirm("Delete your account?")) return;
+      const res = await fetch("/auth/me", { method: "DELETE", headers: headers() });
+      if (res.ok) { localStorage.removeItem(KEY); location.reload(); }
+    };
+
+    async function load(showAuthOnFail = true) {
+      const res = await fetch("/api/user/overview", { headers: headers() });
+      if (res.status === 401) {
+        if (showAuthOnFail) { $("auth").classList.remove("hidden"); $("app").classList.add("hidden"); }
+        return;
+      }
+      data = await res.json();
+      render();
+    }
+
+    async function boot() {
+      $("auth").classList.add("hidden");
+      $("app").classList.remove("hidden");
+      go("home");
+      await load();
+    }
+
+    (async function init() {
+      setAuthMode("login");
+      if (!token()) return;
+      try {
+        const res = await fetch("/auth/me", { headers: headers() });
+        if (!res.ok) throw new Error("bad");
+        await boot();
+      } catch {
+        localStorage.removeItem(KEY);
+      }
+    })();
+  </script>
+</body>
+</html>
